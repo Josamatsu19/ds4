@@ -1,0 +1,59 @@
+﻿@model IEnumerable<Parcial3.Models.SolicitudModelo>
+
+@{ ViewBag.Title = "Listado de Pasaportes"; }
+
+<h2>Gestión de Solicitudes - Parcial 3</h2>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<p>
+    @Html.ActionLink("Nueva Solicitud", "Create", null, new { @class = "btn btn-primary btn-lg" })
+</p>
+
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>@Html.DisplayNameFor(model => model.DNI)</th>
+            <th>@Html.DisplayNameFor(model => model.Nombre)</th>
+            <th>@Html.DisplayNameFor(model => model.Apellido)</th>
+            <th>Estado Actual</th>
+            <th>Fecha Solicitud</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@Html.DisplayFor(modelItem => item.DNI)</td>
+                <td>@Html.DisplayFor(modelItem => item.Nombre)</td>
+                <td>@Html.DisplayFor(modelItem => item.Apellido)</td>
+                <td>
+                    @if (item.Estado == "Pendiente")
+                    {
+                        <span class="label label-warning" style="font-size:100%">Pendiente</span>
+                    }
+                    else if (item.Estado == "Aprobado")
+                    {
+                        <span class="label label-success" style="font-size:100%">Aprobado</span>
+                    }
+                    else if (item.Estado == "Rechazado")
+                    {
+                        <span class="label label-danger" style="font-size:100%">Rechazado</span>
+                    }
+                    else
+                    {
+                        <span class="label label-info" style="font-size:100%">@item.Estado</span>
+                    }
+                </td>
+                <td>@item.FechaSolicitud.ToShortDateString()</td>
+                <td>
+                    @Html.ActionLink("Actualizar Estado", "Edit", new { id = item.IdSolicitud }, new { @class = "btn btn-warning btn-sm" })
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

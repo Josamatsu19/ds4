@@ -1,0 +1,61 @@
+﻿@model List<SemestralWeb.Controllers.HomeController.ResultadoCalculo>
+
+@{
+    ViewBag.Title = "Calculadora";
+}
+
+<h2>Calculadora de Porciones</h2>
+
+<div class="well">
+    <form action="@Url.Action("Calcular", "Home")" method="post" class="form-inline">
+        <input type="hidden" name="id" value="@ViewBag.RecetaId" />
+
+        <div class="form-group">
+            <label style="margin-right:10px;">¿Para cuántas personas cocinarás?</label>
+            <input type="number" name="personas" class="form-control" value="@ViewBag.Personas" required min="1" style="width:100px;" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Recalcular Ingredientes</button>
+    </form>
+</div>
+
+<hr />
+
+@if (Model != null && Model.Count > 0)
+{
+    <div class="panel panel-success">
+        <div class="panel-heading">Resultados del cálculo</div>
+        <div class="panel-body">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Ingrediente</th>
+                        <th>Cantidad Necesaria</th>
+                        <th>Unidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.Nombre</td>
+                            <td style="font-weight:bold; color:green; font-size:1.2em;">@item.CantidadNueva</td>
+                            <td>@item.Unidad</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else if (IsPost)
+{
+    <div class="alert alert-warning">
+        No se encontraron ingredientes para esta receta o hubo un error al calcular.
+    </div>
+}
+
+<div style="margin-top:20px;">
+    <a href="@Url.Action("Index", "Home")" class="btn btn-default">&larr; Volver al listado</a>
+    <a href="@Url.Action("AgregarFavorito", "Home", new { id = ViewBag.RecetaId })" class="btn btn-warning">⭐ Agregar a Favoritos</a>
+</div>

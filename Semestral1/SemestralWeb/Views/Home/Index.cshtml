@@ -1,0 +1,72 @@
+﻿@{ ViewBag.Title = "Dashboard"; }
+
+<div class="row" style="margin-top:20px;">
+    <div class="col-md-8">
+        <h2>Hola, @(((SemestralWeb.Models.UsuarioSesion)Session["Usuario"]).Nombre)</h2>
+    </div>
+    <div class="col-md-4 text-right">
+        <a href="@Url.Action("Crear", "Home")" class="btn btn-success btn-lg">+ Añadir Receta</a>
+    </div>
+</div>
+
+<hr />
+
+<div class="panel panel-info">
+    <div class="panel-heading">🔥 Recetas Populares</div>
+    <div class="panel-body">
+        <div class="row">
+            @foreach (var receta in ViewBag.Populares)
+            {
+                <div class="col-md-4">
+                    <div class="thumbnail">
+                        <div class="caption">
+                            <h3>@receta.Nombre</h3>
+                            <p>@receta.Instrucciones.Substring(0, System.Math.Min(30, @receta.Instrucciones.Length))...</p>
+                            <a href="@Url.Action("Calcular", "Home", new { id = receta.Id })" class="btn btn-primary btn-block">Ver / Calcular</a>
+                            <a href="@Url.Action("AgregarFavorito", "Home", new { id = receta.Id })" class="btn btn-default btn-block">⭐ Favorito</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<h3>📚 Mis Recetas</h3>
+<table class="table table-striped">
+    <thead><tr><th>Nombre</th><th>Acciones</th></tr></thead>
+    <tbody>
+        @foreach (var receta in ViewBag.MisRecetas)
+        {
+            <tr>
+                <td>@receta.Nombre</td>
+                <td>
+                    <a href="@Url.Action("Calcular", "Home", new { id = receta.Id })" class="btn btn-info btn-xs">Ver</a>
+                    <a href="@Url.Action("Borrar", "Home", new { id = receta.Id })" class="btn btn-danger btn-xs" onclick="return confirm('¿Seguro de borrar esta receta?');">Borrar</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h3>⭐ Mis Favoritos</h3>
+<ul>
+    @foreach (var fav in ViewBag.Favoritos)
+    {
+        <li>@fav.Nombre - <a href="@Url.Action("Calcular", "Home", new { id = fav.Id })">Ir a receta</a></li>
+    }
+</ul>
+
+<div class="alert alert-warning" style="margin-top:30px;">
+    <h4>📊 Reporte: Ingredientes más utilizados</h4>
+    <table class="table table-condensed">
+        <tr><th>Ingrediente</th><th>Veces Usado</th></tr>
+        @foreach (var rep in ViewBag.Reporte)
+        {
+            <tr>
+                <td>@rep["Ingrediente"]</td>
+                <td>@rep["VecesUtilizado"]</td>
+            </tr>
+        }
+    </table>
+</div>
