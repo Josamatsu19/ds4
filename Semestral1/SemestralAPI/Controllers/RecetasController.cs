@@ -9,7 +9,34 @@ namespace SemestralAPI.Controllers
     public class RecetasController : ApiController
     {
         string cs = "Data Source=JOSELUNA;Initial Catalog=GestorRecetasDB;Integrated Security=True;";
+        // 1. OBTENER DETALLE DE RECETA
+        [HttpGet]
+        [Route("api/recetas/detalle/{id}")]
+        public IHttpActionResult GetRecetaDetalle(int id)
+        {
+            RecetaModelo receta = null;
+            using (SqlConnection con = new SqlConnection(cs))
+            {
+                con.Open();
+                string q = "SELECT * FROM Recetas WHERE Id = @id";
+                SqlCommand cmd = new SqlCommand(q, con);
+                cmd.Parameters.AddWithValue("@id", id);
+                SqlDataReader r = cmd.ExecuteReader();
+                if (r.Read())
+                {
+                    receta = new RecetaModelo
+                    {
+                        Id = (int)r["Id"],
+                        Nombre = r["Nombre"].ToString(),
+                        Instrucciones = r["Instrucciones"].ToString(),
+                        Porciones = (int)r["PorcionesBase"]
+                    };
+                }
+            }
 
+            if (receta == null) return NotFound();
+            return Ok(receta);
+        }
         // LOGIN
         [HttpPost]
         [Route("api/login")]
@@ -29,7 +56,7 @@ namespace SemestralAPI.Controllers
             }
         }
 
-        // 2. OBTENER RECETAS
+        //OBTENER RECETAS
         [HttpGet]
         [Route("api/recetas")]
         public IHttpActionResult GetRecetas(int? usuarioId = null, bool populares = false)
@@ -38,10 +65,10 @@ namespace SemestralAPI.Controllers
             using (SqlConnection con = new SqlConnection(cs))
             {
                 con.Open();
-                string q = "SELECT TOP 10 * FROM Recetas"; 
+                string q = "SELECT TOP 10 * FROM Recetas";
 
                 if (usuarioId != null) q = "SELECT * FROM Recetas WHERE UsuarioId = " + usuarioId;
-                if (populares) q = "SELECT TOP 3 * FROM Recetas ORDER BY Id DESC"; 
+                if (populares) q = "SELECT TOP 3 * FROM Recetas ORDER BY Id DESC";
 
                 SqlCommand cmd = new SqlCommand(q, con);
                 SqlDataReader r = cmd.ExecuteReader();
@@ -59,7 +86,7 @@ namespace SemestralAPI.Controllers
             return Ok(lista);
         }
 
-        // 3. CALCULAR (Lógica matemática de porciones)
+        //CALCULAR (Lógica matemática de porciones)
         [HttpGet]
         [Route("api/recetas/calcular")]
         public IHttpActionResult Calcular(int id, int nuevasPorciones)
@@ -114,7 +141,7 @@ namespace SemestralAPI.Controllers
             }
         }
 
-        // 4. CREAR RECETA
+        //CREAR RECETA
         [HttpPost]
         [Route("api/recetas/crear")]
         public IHttpActionResult Crear(RecetaModelo receta)
@@ -122,18 +149,63 @@ namespace SemestralAPI.Controllers
             using (SqlConnection con = new SqlConnection(cs))
             {
                 con.Open();
-                string q = "INSERT INTO Recetas (Nombre, Instrucciones, PorcionesBase, UsuarioId, CategoriaId) VALUES (@n, @i, @p, @u, 1)";
-                SqlCommand cmd = new SqlCommand(q, con);
-                cmd.Parameters.AddWithValue("@n", receta.Nombre);
-                cmd.Parameters.AddWithValue("@i", receta.Instrucciones);
-                cmd.Parameters.AddWithValue("@p", receta.Porciones);
-                cmd.Parameters.AddWithValue("@u", 1); 
-                cmd.ExecuteNonQuery();
+                SqlTransaction transaction = con.BeginTransaction();
+
+                try
+                {
+                    string qReceta = "INSERT INTO Recetas (Nombre, Instrucciones, PorcionesBase, UsuarioId, CategoriaId) VALUES (@n, @i, @p, @u, 1); SELECT SCOPE_IDENTITY();";
+                    SqlCommand cmdReceta = new SqlCommand(qReceta, con, transaction);
+                    cmdReceta.Parameters.AddWithValue("@n", receta.Nombre);
+                    cmdReceta.Parameters.AddWithValue("@i", receta.Instrucciones);
+                    cmdReceta.Parameters.AddWithValue("@p", receta.Porciones);
+                    cmdReceta.Parameters.AddWithValue("@u", 1);
+
+                    int recetaId = Convert.ToInt32(cmdReceta.ExecuteScalar());
+
+                    if (receta.ListaIngredientes != null)
+                    {
+                        foreach (var ing in receta.ListaIngredientes)
+                        {
+                            int ingredienteId = 0;
+
+                            string qCheck = "SELECT Id FROM Ingredientes WHERE Nombre = @nom";
+                            SqlCommand cmdCheck = new SqlCommand(qCheck, con, transaction);
+                            cmdCheck.Parameters.AddWithValue("@nom", ing.Nombre);
+                            object result = cmdCheck.ExecuteScalar();
+
+                            if (result != null)
+                            {
+                                ingredienteId = Convert.ToInt32(result);
+                            }
+                            else
+                            {
+                                string qInsertIng = "INSERT INTO Ingredientes (Nombre, UnidadMedida) VALUES (@nom, @uni); SELECT SCOPE_IDENTITY();";
+                                SqlCommand cmdIng = new SqlCommand(qInsertIng, con, transaction);
+                                cmdIng.Parameters.AddWithValue("@nom", ing.Nombre);
+                                cmdIng.Parameters.AddWithValue("@uni", ing.Unidad);
+                                ingredienteId = Convert.ToInt32(cmdIng.ExecuteScalar());
+                            }
+
+                            string qRelacion = "INSERT INTO RecetaIngredientes (RecetaId, IngredienteId, Cantidad) VALUES (@rid, @iid, @cant)";
+                            SqlCommand cmdRel = new SqlCommand(qRelacion, con, transaction);
+                            cmdRel.Parameters.AddWithValue("@rid", recetaId);
+                            cmdRel.Parameters.AddWithValue("@iid", ingredienteId);
+                            cmdRel.Parameters.AddWithValue("@cant", ing.Cantidad);
+                            cmdRel.ExecuteNonQuery();
+                        }
+                    }
+                    transaction.Commit();
+                    return Ok();
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    return InternalServerError(ex);
+                }
             }
-            return Ok();
         }
 
-        // 5. FAVORITOS 
+        //FAVORITOS 
         [HttpPost]
         [Route("api/favoritos/agregar")]
         public IHttpActionResult AddFavorito(int usuarioId, int recetaId)
@@ -184,7 +256,7 @@ namespace SemestralAPI.Controllers
             return Ok(lista);
         }
 
-        // 6. BORRAR RECETA
+        //BORRAR RECETA
         [HttpDelete]
         [Route("api/recetas/{id}")]
         public IHttpActionResult Borrar(int id)
@@ -201,7 +273,7 @@ namespace SemestralAPI.Controllers
             return Ok();
         }
 
-        // 7. REPORTE: Ingredientes más usados
+        //REPORTE: Ingredientes más usados
         [HttpGet]
         [Route("api/reportes/ingredientes")]
         public IHttpActionResult ReporteIngredientes()
@@ -226,5 +298,8 @@ namespace SemestralAPI.Controllers
         public decimal CantidadOriginal { get; set; }
         public decimal CantidadNueva { get; set; }
         public string Unidad { get; set; }
+
     }
+
+
 }

@@ -4,11 +4,15 @@ using System.Net;
 using System.IO;
 using System.Web.Script.Serialization;
 using SemestralWeb.Models;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using System;
 
 namespace SemestralWeb.Controllers
 {
     public class HomeController : Controller
-    {
+    {                       
         string baseUrl = "https://localhost:44316/api/"; 
 
         private T LlamarApi<T>(string endpoint)
@@ -47,27 +51,29 @@ namespace SemestralWeb.Controllers
             return View();
         }
 
-        public ActionResult Crear() { return View(); }
-
         [HttpPost]
-        public ActionResult Crear(string nombre, string instrucciones, int porciones)
+        public async Task<ActionResult> Crear(RecetaVista modelo)
         {
+            if (Session["Usuario"] == null) return RedirectToAction("Login", "Acceso");
             var usuario = (UsuarioSesion)Session["Usuario"];
-            var httpWebRequest = (HttpWebRequest)WebRequest.Create(baseUrl + "recetas/crear");
-            httpWebRequest.ContentType = "application/json";
-            httpWebRequest.Method = "POST";
 
-            using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+            var handler = new HttpClientHandler();
+            handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+
+            using (var client = new HttpClient(handler))
             {
-                string json = new JavaScriptSerializer().Serialize(new
-                {
-                    Nombre = nombre,
-                    Instrucciones = instrucciones,
-                    Porciones = porciones
-                });
-                streamWriter.Write(json);
+                string urlBaseLimpia = baseUrl.Replace("api/", "");
+                client.BaseAddress = new Uri(urlBaseLimpia);
+
+                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+                var json = new JavaScriptSerializer().Serialize(modelo);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var resp = await client.PostAsync("api/recetas/crear", content);
+                resp.EnsureSuccessStatusCode();
             }
-            httpWebRequest.GetResponse();
+
             return RedirectToAction("Index");
         }
 
@@ -93,34 +99,49 @@ namespace SemestralWeb.Controllers
             public string Unidad { get; set; }
         }
 
+        // 1. GET: Carga la vista con instrucciones pero tabla vacía
         [HttpGet]
         public ActionResult Calcular(int id)
         {
-            ViewBag.RecetaId = id;
-            ViewBag.Personas = 1; 
-            return View(new List<ResultadoCalculo>());
+            // 1. Traer datos de la receta (Nombre, Instrucciones)
+            var receta = LlamarApi<RecetaVista>($"recetas/detalle/{id}");
+
+            // 2. Preparar el modelo
+            var modelo = new RecetaDetalleViewModel
+            {
+                Receta = receta,
+                Ingredientes = new List<ResultadoCalculo>(), 
+                PersonasInput = receta.Porciones
+            };
+
+            return View(modelo);
         }
 
+        // 2. POST: Carga instrucciones Y calcula ingredientes
         [HttpPost]
         public ActionResult Calcular(int id, int personas)
         {
-            ViewBag.RecetaId = id;
-            ViewBag.Personas = personas;
+            // 1. Traer datos de la receta otra vez (para no perder el nombre/instrucciones al recargar)
+            var receta = LlamarApi<RecetaVista>($"recetas/detalle/{id}");
 
-            List<ResultadoCalculo> ingredientes = new List<ResultadoCalculo>();
-
+            // 2. Calcular ingredientes
+            List<ResultadoCalculo> ingredientesCalc = new List<ResultadoCalculo>();
             try
             {
                 string endpoint = $"recetas/calcular?id={id}&nuevasPorciones={personas}";
-
-                ingredientes = LlamarApi<List<ResultadoCalculo>>(endpoint);
+                ingredientesCalc = LlamarApi<List<ResultadoCalculo>>(endpoint);
             }
-            catch
+            catch { ViewBag.Error = "Error al calcular."; }
+
+            // 3. Empaquetar todo
+            var modelo = new RecetaDetalleViewModel
             {
-                ViewBag.Error = "No se pudo conectar al servidor de cálculo.";
-            }
+                Receta = receta,
+                Ingredientes = ingredientesCalc,
+                PersonasInput = personas
+            };
 
-            return View(ingredientes);
+            return View(modelo);
         }
 
     }
