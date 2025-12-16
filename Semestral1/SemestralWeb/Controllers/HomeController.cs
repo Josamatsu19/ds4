@@ -12,8 +12,8 @@ using System;
 namespace SemestralWeb.Controllers
 {
     public class HomeController : Controller
-    {                       
-        string baseUrl = "https://localhost:44316/api/"; 
+    {
+        string baseUrl = "https://localhost:44316/api/";
 
         private T LlamarApi<T>(string endpoint)
         {
@@ -40,14 +40,29 @@ namespace SemestralWeb.Controllers
             if (Session["Usuario"] == null) return RedirectToAction("Login", "Acceso");
             var usuario = (UsuarioSesion)Session["Usuario"];
 
-            ViewBag.Populares = LlamarApi<List<RecetaVista>>("recetas?populares=true");
+            try
+            {
+                ViewBag.Populares = LlamarApi<List<RecetaVista>>("recetas?populares=true");
+                ViewBag.MisRecetas = LlamarApi<List<RecetaVista>>($"recetas?usuarioId={usuario.Id}");
+                ViewBag.Favoritos = LlamarApi<List<RecetaVista>>($"favoritos/{usuario.Id}");
+                ViewBag.Reporte = LlamarApi<List<object>>("reportes/ingredientes");
+            }
+            catch
+            {
+                // Evita que la página se rompa si el API está apagado
+                ViewBag.Error = "No se pudo conectar al API.";
+                ViewBag.Populares = new List<RecetaVista>();
+                ViewBag.MisRecetas = new List<RecetaVista>();
+                ViewBag.Favoritos = new List<RecetaVista>();
+                ViewBag.Reporte = new List<object>();
+            }
 
-            ViewBag.MisRecetas = LlamarApi<List<RecetaVista>>($"recetas?usuarioId={usuario.Id}");
+            return View();
+        }
 
-            ViewBag.Favoritos = LlamarApi<List<RecetaVista>>($"favoritos/{usuario.Id}");
-
-            ViewBag.Reporte = LlamarApi<List<object>>("reportes/ingredientes");
-
+        [HttpGet]
+        public ActionResult Crear()
+        {
             return View();
         }
 
@@ -57,6 +72,7 @@ namespace SemestralWeb.Controllers
             if (Session["Usuario"] == null) return RedirectToAction("Login", "Acceso");
             var usuario = (UsuarioSesion)Session["Usuario"];
 
+            // Bypass de certificado SSL para desarrollo
             var handler = new HttpClientHandler();
             handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
 
@@ -70,6 +86,7 @@ namespace SemestralWeb.Controllers
                 var json = new JavaScriptSerializer().Serialize(modelo);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+                // Enviamos los datos al API
                 var resp = await client.PostAsync("api/recetas/crear", content);
                 resp.EnsureSuccessStatusCode();
             }
@@ -110,7 +127,7 @@ namespace SemestralWeb.Controllers
             var modelo = new RecetaDetalleViewModel
             {
                 Receta = receta,
-                Ingredientes = new List<ResultadoCalculo>(), 
+                Ingredientes = new List<ResultadoCalculo>(),
                 PersonasInput = receta.Porciones
             };
 
@@ -121,7 +138,7 @@ namespace SemestralWeb.Controllers
         [HttpPost]
         public ActionResult Calcular(int id, int personas)
         {
-            // 1. Traer datos de la receta otra vez (para no perder el nombre/instrucciones al recargar)
+            // 1. Traer datos de la receta otra vez
             var receta = LlamarApi<RecetaVista>($"recetas/detalle/{id}");
 
             // 2. Calcular ingredientes
@@ -143,6 +160,5 @@ namespace SemestralWeb.Controllers
 
             return View(modelo);
         }
-
     }
 }
