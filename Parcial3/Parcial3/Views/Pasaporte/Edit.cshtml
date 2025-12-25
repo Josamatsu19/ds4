@@ -1,0 +1,48 @@
+﻿@model Parcial3.Models.SolicitudModelo
+
+@{ ViewBag.Title = "Actualizar Estado"; }
+
+<h2>Actualizar Estado de Solicitud</h2>
+
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+
+    <div class="form-horizontal">
+        <h4>Solicitante: @Model.Nombre @Model.Apellido (DNI: @Model.DNI)</h4>
+        <hr />
+        @Html.HiddenFor(model => model.IdSolicitud)
+        @Html.HiddenFor(model => model.DNI)
+        @Html.HiddenFor(model => model.Nombre)
+        @Html.HiddenFor(model => model.Apellido)
+        @Html.HiddenFor(model => model.FechaNacimiento)
+
+        <div class="form-group">
+            <label class="control-label col-md-2">Fecha de la Solicitud</label>
+            <div class="col-md-10">
+                <input type="text" class="form-control" value="@Model.FechaSolicitud.ToString()" readonly />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="control-label col-md-2">Estado del Trámite</label>
+            <div class="col-md-10">
+                @Html.DropDownListFor(model => model.Estado, new List<SelectListItem>
+                {
+                    new SelectListItem{ Text="Pendiente", Value="Pendiente" },
+                    new SelectListItem{ Text="Aprobado", Value="Aprobado" },
+                    new SelectListItem{ Text="Rechazado", Value="Rechazado" },
+                    new SelectListItem{ Text="Entregado", Value="Entregado" }
+                }, new { @class = "form-control" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <br />
+                <input type="submit" value="Actualizar Estado" class="btn btn-warning" />
+                @Html.ActionLink("Volver", "Index", null, new { @class = "btn btn-default" })
+            </div>
+        </div>
+    </div>
+}

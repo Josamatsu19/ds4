@@ -1,0 +1,81 @@
+﻿@model SemestralWeb.Models.RecetaDetalleViewModel
+
+@{
+    ViewBag.Title = Model.Receta.Nombre;
+}
+
+<div class="container">
+    <div class="row" style="margin-bottom: 20px;">
+        <div class="col-md-8">
+            <h1 class="text-primary">@Model.Receta.Nombre</h1>
+            <span class="label label-info">Receta Original para @Model.Receta.Porciones personas</span>
+        </div>
+        <div class="col-md-4 text-right" style="margin-top: 20px;">
+            <a href="@Url.Action("AgregarFavorito", "Home", new { id = Model.Receta.Id })" class="btn btn-warning">
+                ⭐ Guardar en Favoritos
+            </a>
+            <a href="@Url.Action("Index", "Home")" class="btn btn-default">Volver</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">📖 Instrucciones de Preparación</h3>
+                </div>
+                <div class="panel-body" style="font-size: 1.1em; line-height: 1.6;">
+                    <p style="white-space: pre-line;">@Model.Receta.Instrucciones</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="panel panel-success">
+                <div class="panel-heading">
+                    <h3 class="panel-title">🔢 Calculadora de Ingredientes</h3>
+                </div>
+                <div class="panel-body">
+                    <form action="@Url.Action("Calcular", "Home")" method="post" class="form-inline well">
+                        <input type="hidden" name="id" value="@Model.Receta.Id" />
+
+                        <label>¿Para cuántas personas?</label>
+                        <input type="number" name="personas" class="form-control"
+                               value="@Model.PersonasInput" required min="1" style="width: 80px;" />
+
+                        <button type="submit" class="btn btn-success">Calcular</button>
+                    </form>
+
+                    @if (Model.Ingredientes != null && Model.Ingredientes.Count > 0)
+                    {
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Ingrediente</th>
+                                    <th>Cantidad</th>
+                                    <th>Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Ingredientes)
+                                {
+                                    <tr>
+                                        <td>@item.Nombre</td>
+                                        <td style="font-weight:bold; color:green;">@item.CantidadNueva</td>
+                                        <td>@item.Unidad</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            Dale click a "Calcular" para ver los ingredientes ajustados a tus invitados.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
